@@ -1,0 +1,69 @@
+---
+jobs:
+- name: build-newrelic-release
+  plan:
+  - aggregate:
+    - get: release-git-repo
+      resource: newrelic-release-git-repo
+      trigger: true
+    - get: pipeline-tasks
+    - get: final-builds-dir-tarball
+      resource: newrelic-final-builds-dir-tarball
+    - get: releases-dir-tarball
+      resource: newrelic-releases-dir-tarball
+  - task: finalize-release
+    file: pipeline-tasks/finalize-bosh-release.yml
+    params:
+      PRIVATE_YML_CONTENT: {{newrelic-private-yml}}
+      FINAL_YML_CONTENT: {{newrelic-final-yml}}
+  - aggregate:
+    - put: newrelic-release-tarball
+      params:
+        file: finalized-release/newrelic-*.tgz
+    - put: newrelic-final-builds-dir-tarball
+      params:
+        file: finalized-release/final-builds-dir-newrelic.tgz
+    - put: newrelic-releases-dir-tarball
+      params:
+        file: finalized-release/releases-dir-newrelic.tgz
+
+
+resources:
+- name: pipeline-tasks
+  type: git
+  source:
+    uri: {{pipeline-tasks-git-url}}
+    branch: {{pipeline-tasks-git-branch}}
+
+- name: newrelic-release-git-repo
+  type: git
+  source:
+    uri: {{newrelic-release-git-url}}
+    branch: {{newrelic-release-git-branch}}
+
+- name: newrelic-release-tarball
+  type: s3
+  source:
+    bucket: {{s3-bosh-releases-bucket}}
+    regexp: newrelic-(.*).tgz
+    access_key_id: {{s3-bosh-releases-access-key-id}}
+    secret_access_key: {{s3-bosh-releases-secret-access-key}}
+    region_name: {{aws-region}}
+
+- name: newrelic-final-builds-dir-tarball
+  type: s3
+  source:
+    bucket: {{s3-bosh-releases-bucket}}
+    versioned_file: final-builds-dir-newrelic.tgz
+    access_key_id: {{s3-bosh-releases-access-key-id}}
+    secret_access_key: {{s3-bosh-releases-secret-access-key}}
+    region_name: {{aws-region}}
+
+- name: newrelic-releases-dir-tarball
+  type: s3
+  source:
+    bucket: {{s3-bosh-releases-bucket}}
+    versioned_file: releases-dir-newrelic.tgz
+    access_key_id: {{s3-bosh-releases-access-key-id}}
+    secret_access_key: {{s3-bosh-releases-secret-access-key}}
+    region_name: {{aws-region}}
